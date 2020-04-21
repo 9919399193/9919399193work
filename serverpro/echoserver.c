@@ -1,6 +1,7 @@
 #include "unp.h"
 
 extern void str_echo(int sockfd);
+extern void sig_chld(int signo);
 
 int main(int argc,char** argv){
 	int listenfd,connfd;
@@ -14,9 +15,20 @@ int main(int argc,char** argv){
 	servaddr.sin_port=htons(9877);
 	Bind(listenfd,(SA* )&servaddr,sizeof(servaddr));
 	Listen(listenfd,LISTENQ);
+	
+	signal(SIGCHLD,sig_chld);
+	
 	for(;;){
 		clilen=sizeof(cliaddr);
-		connfd=accept(listenfd,(SA* )&cliaddr,&clilen);
+
+		if((connfd=accept(listenfd,(SA* )&cliaddr,&clilen))<0){
+			if(errno==EINTR){
+				continue;
+			}
+			else
+				err_sys("accept error");
+		}
+		
 		if((childpid=fork())==0){
 			Close(listenfd);
 			printf("got it!\n");
